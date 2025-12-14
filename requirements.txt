@@ -1,0 +1,7 @@
+mesa
+pandas
+numpy
+scipy
+matplotlib
+seaborn
+vaderSentiment
