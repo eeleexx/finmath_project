@@ -10,6 +10,12 @@ class MarketParticipant(Agent):
         self.wealth = initial_wealth
         self.portfolio = {"calls": 0, "puts": 0, "cash": initial_wealth}
 
+        # Adaptive threshold
+        self.threshold = 0.1
+        self.last_action = None  # "call" / "put" / None
+        self.last_price = None
+        self.score_ema = 0.0  # экспоненциальная оценка "насколько я угадываю"
+
 
 class MarketMaker(Agent):
     def __init__(self, model, initial_iv=0.2):
@@ -151,23 +157,49 @@ class NoiseTrader(MarketParticipant):
         if news is None:
             return
 
-        sentiment = news.get("title_sentiment", 0)
-        action_threshold = 0.1
+        # 1) обновляем "обучение" по прошлому действию (прокси-P&L)
+        if self.last_action is not None and self.last_price is not None:
+            ret = np.log(self.model.stock_price / self.last_price)
+            correct = 0.0
+            if self.last_action == "call":
+                correct = 1.0 if ret > 0 else -1.0
+            elif self.last_action == "put":
+                correct = 1.0 if ret < 0 else -1.0
 
-        # HYPOTHESIS 2: Noise Traders buy "Lottery Tickets" (OTM Options)
-        # If Bullish -> Buy Call OTM (Strike 110)
-        # If Bearish -> Buy Put OTM (Strike 90)
+            # EMA обновление качества сигналов
+            beta = 0.1
+            self.score_ema = (1 - beta) * self.score_ema + beta * correct
 
-        if sentiment > action_threshold:
-            # Buy Call OTM (110)
+            # если мы в минусе → порог вверх (торгуем реже)
+            # если в плюсе → порог вниз (торгуем чаще)
+            if self.score_ema < 0:
+                self.threshold = min(0.6, self.threshold * 1.05)
+            else:
+                self.threshold = max(0.05, self.threshold * 0.98)
+
+        # 2) готовим risk-adjusted sentiment
+        sent = news.get("title_sentiment", 0.0)
+        risk_mult = self.model.risk_multiplier(alpha=3.0, window=20)
+        eff_sent = sent * risk_mult
+
+        # 3) торговля по адаптивному порогу
+        if eff_sent > self.threshold:
             cost = self.model.market_maker.process_order("buy_call", 1, strike=110)
             self.portfolio["calls"] += 1
             self.portfolio["cash"] -= cost
-        elif sentiment < -action_threshold:
-            # Buy Put OTM (90)
+            self.last_action = "call"
+            self.last_price = self.model.stock_price
+
+        elif eff_sent < -self.threshold:
             cost = self.model.market_maker.process_order("buy_put", 1, strike=90)
             self.portfolio["puts"] += 1
             self.portfolio["cash"] -= cost
+            self.last_action = "put"
+            self.last_price = self.model.stock_price
+
+        else:
+            self.last_action = None
+            self.last_price = self.model.stock_price
 
 
 class SophisticatedTrader(MarketParticipant):

@@ -1,8 +1,9 @@
-import re
-
 import numpy as np
 from scipy.stats import norm
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 class BlackScholes:
     @staticmethod
@@ -39,17 +40,40 @@ class BlackScholes:
         d1 = BlackScholes.d1(S, K, T, r, sigma)
         return norm.cdf(d1) - 1
 
-
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-
-
-class SentimentAnalyzer:
+# ---------- VADER ----------
+class VaderSentimentAnalyzer:
     def __init__(self):
         self.analyzer = SentimentIntensityAnalyzer()
 
     def get_score(self, text: str) -> float:
-        if not isinstance(text, str):
+        if not isinstance(text, str) or text.strip() == "":
+            return 0.0
+        return self.analyzer.polarity_scores(text)["compound"]
+
+
+# ---------- FinBERT ----------
+class FinBertSentimentAnalyzer:
+    def __init__(self):
+        self.tokenizer = AutoTokenizer.from_pretrained("ProsusAI/finbert")
+        self.model = AutoModelForSequenceClassification.from_pretrained("ProsusAI/finbert")
+        self.model.eval()
+
+    def get_score(self, text: str) -> float:
+        if not isinstance(text, str) or text.strip() == "":
             return 0.0
 
-        scores = self.analyzer.polarity_scores(text)
-        return scores["compound"]
+        inputs = self.tokenizer(
+            text,
+            return_tensors="pt",
+            truncation=True,
+            padding=True,
+            max_length=512,
+        )
+
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            probs = torch.softmax(outputs.logits, dim=1).squeeze()
+
+        # labels: [negative, neutral, positive]
+        score = probs[2] - probs[0]
+        return float(score)

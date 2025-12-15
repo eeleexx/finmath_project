@@ -6,7 +6,7 @@ from mesa import Model
 from mesa.datacollection import DataCollector
 
 from agents import MarketMaker, NoiseTrader, SophisticatedTrader
-from utils import SentimentAnalyzer
+from utils import VaderSentimentAnalyzer, FinBertSentimentAnalyzer
 
 
 class FinancialMarket(Model):
@@ -23,6 +23,8 @@ class FinancialMarket(Model):
         self.time_to_maturity = 1.0  # 1 Year
         self.dt = 1 / 252  # Daily steps
         self.realized_vol = 0.2
+
+        self.price_history = [self.stock_price]
 
         # Load and Process Data
         self.news_data = self.load_data(stock_symbol)
@@ -77,13 +79,17 @@ class FinancialMarket(Model):
             return []
 
         # Analyze Sentiment
-        analyzer = SentimentAnalyzer()
+        vader = VaderSentimentAnalyzer()
+        finbert = FinBertSentimentAnalyzer()
         # Handle possible missing columns or empty strings
         df["title"] = df["title"].fillna("")
         df["summary"] = df["summary"].fillna("")
 
-        df["title_sentiment"] = df["title"].apply(analyzer.get_score)
-        df["content_sentiment"] = df["summary"].apply(analyzer.get_score)
+        # Noise traders: react to headlines (VADER)
+        df["title_sentiment"] = df["title"].apply(vader.get_score)
+
+        # Sophisticated traders: read content (FinBERT)
+        df["content_sentiment"] = df["summary"].apply(finbert.get_score)
 
         return df.to_dict("records")
 
@@ -107,6 +113,7 @@ class FinancialMarket(Model):
             (drift - 0.5 * self.realized_vol**2) * self.dt
             + self.realized_vol * np.sqrt(self.dt) * shock
         )
+        self.price_history.append(self.stock_price)
 
         # Agents Act (Random Order)
         random.shuffle(self.market_agents)
@@ -115,3 +122,15 @@ class FinancialMarket(Model):
 
         # Collect Data
         self.datacollector.collect(self)
+
+    def get_rv(self, window=20):
+        if len(self.price_history) < window + 1:
+            return self.realized_vol  # fallback
+        prices = np.array(self.price_history[-(window + 1):])
+        log_returns = np.diff(np.log(prices))
+        rv = np.std(log_returns) * np.sqrt(252)
+        return float(rv)
+
+    def risk_multiplier(self, alpha=3.0, window=20):
+        rv = self.get_rv(window=window)
+        return 1.0 / (1.0 + alpha * rv)
