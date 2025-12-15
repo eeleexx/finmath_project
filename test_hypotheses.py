@@ -44,8 +44,8 @@ def test_hypothesis_1_divergence_spread():
     clean_df = df.dropna(subset=["Spread", "Divergence"])
 
     # Export to CSV
-    clean_df.to_csv("results_hypothesis_1.csv")
-    print("Data saved to results_hypothesis_1.csv")
+    clean_df.to_csv("results/results_hypothesis_1.csv")
+    print("Data saved to results/results_hypothesis_1.csv")
 
     if len(clean_df) < 10:
         print("Not enough data points for regression.")
@@ -101,8 +101,8 @@ def test_hypothesis_2_vol_smile():
 
     # Export Data
     combined_df = pd.concat([df_low, df_high])
-    combined_df.to_csv("results_hypothesis_2_smile.csv")
-    print("Data saved to results_hypothesis_2_smile.csv")
+    combined_df.to_csv("results/results_hypothesis_2_smile.csv")
+    print("Data saved to results/results_hypothesis_2_smile.csv")
 
     # Statistical Test (t-test)
     # Testing if High Noise OTM Call IV is significantly greater than Low Noise
@@ -204,8 +204,8 @@ def test_hypothesis_3_mm_hedging():
 
     # Export Data
     combined_df = pd.concat([df_low, df_high])
-    combined_df.to_csv("results_hypothesis_3_wealth.csv")
-    print("Data saved to results_hypothesis_3_wealth.csv")
+    combined_df.to_csv("results/results_hypothesis_3_wealth.csv")
+    print("Data saved to results/results_hypothesis_3_wealth.csv")
 
     # Statistical Test (t-test on Daily P&L)
     pnl_high = df_high["MMPortfolioValue"].diff().dropna()
@@ -284,8 +284,8 @@ def test_sentiment_comparison():
 
     # Export Data
     combined_df = pd.concat([df_mixed, df_finbert])
-    combined_df.to_csv("results_sentiment_comparison.csv")
-    print("Data saved to results_sentiment_comparison.csv")
+    combined_df.to_csv("results/results_sentiment_comparison.csv")
+    print("Data saved to results/results_sentiment_comparison.csv")
 
     # Compare Volatility of Stock Price
     vol_mixed = calculate_rv(df_mixed["StockPrice"]).mean()

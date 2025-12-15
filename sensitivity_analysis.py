@@ -75,8 +75,8 @@ def run_sensitivity_analysis():
 
     # Convert to DataFrame
     res_df = pd.DataFrame(results)
-    res_df.to_csv("results_sensitivity.csv", index=False)
-    print("Sensitivity results saved to results_sensitivity.csv")
+    res_df.to_csv("results/results_sensitivity.csv", index=False)
+    print("Sensitivity results saved to results/results_sensitivity.csv")
 
     # --- PLOTTING HEATMAPS ---
     sns.set_theme(style="whitegrid")
