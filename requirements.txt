@@ -5,3 +5,8 @@ scipy
 matplotlib
 seaborn
 vaderSentiment
+solara
+networkx
+torch
+altair
+transformers
