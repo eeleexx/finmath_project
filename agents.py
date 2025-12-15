@@ -259,20 +259,23 @@ class NoiseTrader(MarketParticipant):
         if news is None:
             return
 
-        sentiment = news.get("title_sentiment", 0)
-        action_threshold = 0.1
+        # Use Z-score for adaptive threshold
+        z_score = self.model.get_sentiment_z_score()
+        
+        # Threshold: Trade if sentiment is > 1 std dev from mean
+        action_threshold = 1.0
 
         # HYPOTHESIS 2: Noise Traders buy "Lottery Tickets" (OTM Options)
-        # If Bullish -> Buy Call OTM (Strike 110)
-        # If Bearish -> Buy Put OTM (Strike 90)
+        # If Bullish (Z > 1) -> Buy Call OTM (Strike S*1.1)
+        # If Bearish (Z < -1) -> Buy Put OTM (Strike S*0.9)
 
-        if sentiment > action_threshold:
+        if z_score > action_threshold:
             # Buy Call OTM (S * 1.1)
             strike = int(self.model.stock_price * 1.1)
             cost = self.model.market_maker.process_order("buy_call", 1, strike=strike)
             self.portfolio["calls"] += 1
             self.portfolio["cash"] -= cost
-        elif sentiment < -action_threshold:
+        elif z_score < -action_threshold:
             # Buy Put OTM (S * 0.9)
             strike = int(self.model.stock_price * 0.9)
             cost = self.model.market_maker.process_order("buy_put", 1, strike=strike)
@@ -289,8 +292,9 @@ class SophisticatedTrader(MarketParticipant):
         if news is None:
             return
 
-        title_sent = news.get("title_sentiment", 0)
-        content_sent = news.get("content_sentiment", 0)
+        # Use FinBERT sentiment (finance-specific) for sophisticated analysis
+        title_sent = news.get("title_sentiment_finbert", news.get("title_sentiment", 0))
+        content_sent = news.get("content_sentiment_finbert", news.get("content_sentiment", 0))
 
         # Divergence
         divergence = abs(title_sent - content_sent)

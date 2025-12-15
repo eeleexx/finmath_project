@@ -6,7 +6,7 @@ from mesa import Model
 from mesa.datacollection import DataCollector
 
 from agents import MarketMaker, NoiseTrader, SophisticatedTrader
-from utils import SentimentAnalyzer
+from utils import SentimentAnalyzer, FinBERTAnalyzer
 
 
 class FinancialMarket(Model):
@@ -29,6 +29,10 @@ class FinancialMarket(Model):
         self.news_data = self.load_data(stock_symbol)
         self.current_step_idx = 0
         self.current_news = None
+        
+        # Sentiment History for Adaptive Threshold (Z-score)
+        self.sentiment_history = []
+        self.window_size = 20
 
         # Agents List (Manual Scheduling)
         self.market_agents = []
@@ -83,17 +87,49 @@ class FinancialMarket(Model):
             print(f"File {file_path} not found. Using empty.")
             return []
 
-        # Analyze Sentiment
-        analyzer = SentimentAnalyzer()
+        # Analyze Sentiment with VADER (for Noise Traders)
+        vader_analyzer = SentimentAnalyzer()
         # Handle possible missing columns or empty strings
         df["title"] = df["title"].fillna("")
         df["summary"] = df["summary"].fillna("")
 
-        df["title_sentiment"] = df["title"].apply(analyzer.get_score)
-        df["content_sentiment"] = df["summary"].apply(analyzer.get_score)
+        df["title_sentiment"] = df["title"].apply(vader_analyzer.get_score)
+        df["content_sentiment"] = df["summary"].apply(vader_analyzer.get_score)
+        
+        # Analyze Sentiment with FinBERT (for Sophisticated Traders)
+        try:
+            finbert_analyzer = FinBERTAnalyzer()
+            df["title_sentiment_finbert"] = df["title"].apply(finbert_analyzer.get_score)
+            df["content_sentiment_finbert"] = df["summary"].apply(finbert_analyzer.get_score)
+        except Exception as e:
+            print(f"FinBERT failed to load: {e}. Using VADER for all.")
+            df["title_sentiment_finbert"] = df["title_sentiment"]
+            df["content_sentiment_finbert"] = df["content_sentiment"]
 
         return df.to_dict("records")
 
+    def get_sentiment_z_score(self):
+        """
+        Calculate Z-score of current sentiment relative to recent history.
+        Returns: (current_sentiment - mean) / std
+        """
+        if not self.current_news:
+            return 0.0
+            
+        current_sent = self.current_news.get("title_sentiment", 0)
+        
+        if len(self.sentiment_history) < 5:
+            return 0.0  # Not enough data
+            
+        # Use rolling window
+        recent_history = self.sentiment_history[-self.window_size:]
+        mean = np.mean(recent_history)
+        std = np.std(recent_history)
+        
+        if std == 0:
+            return 0.0
+            
+        return (current_sent - mean) / std
     def step(self):
         if self.current_step_idx >= len(self.news_data):
             self.running = False
@@ -102,6 +138,9 @@ class FinancialMarket(Model):
         # Get News
         self.current_news = self.news_data[self.current_step_idx]
         self.current_step_idx += 1
+        
+        # Update Sentiment History
+        self.sentiment_history.append(self.current_news.get("title_sentiment", 0))
 
         # Update Stock Price (Geometric Brownian Motion)
         # Drift depends on Content Sentiment (The "Real" News)

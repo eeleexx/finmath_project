@@ -5,3 +5,5 @@ scipy
 matplotlib
 seaborn
 vaderSentiment
+transformers
+torch
