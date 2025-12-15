@@ -1,0 +1,66 @@
+\section{Results and Statistical Analysis}
+
+We conducted a series of simulations spanning 252 trading days, equivalent to one year, to rigorously test the formulated hypotheses.
+
+\subsection{Testing Hypothesis 1: Divergence and Spread}
+Our analysis of the correlation between sentiment divergence and the spread between Implied Volatility (IV) and Realized Volatility (RV) yielded a weak and statistically insignificant correlation ($r = -0.0306$, $p\text{-value} = 0.64$). This result indicates that the hypothesis was not confirmed. The lack of significant correlation suggests that even in the presence of arbitrageurs, such as Sophisticated Traders, market inefficiencies may persist. This could be attributed to the dominance of noise traders or the limitations of arbitrage capital, validating the concept of "Limits to Arbitrage."
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/hypothesis_1_result.png}
+    \caption{Correlation between Divergence and IV-RV Spread.}
+    \label{fig:hyp1}
+\end{figure}
+
+\subsection{Testing Hypothesis 2: Volatility Smile}
+We compared the volatility structure in scenarios characterized by Low Noise versus High Noise. A t-test confirmed a statistically significant difference in OTM Implied Volatility between the two groups ($t = 22.12$, $p < 0.001$). In the High Noise scenario, we observed a pronounced increase in Implied Volatility for Out-of-the-Money strikes relative to At-the-Money strikes. This finding confirms our second hypothesis. The persistent demand for "lottery tickets" from noise traders effectively creates and sustains the volatility smile, demonstrating the behavioral origins of this market phenomenon.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/hypothesis_2_result.png}
+    \caption{Volatility Smile: High Noise vs. Low Noise.}
+    \label{fig:hyp2}
+\end{figure}
+
+\subsection{Testing Hypothesis 3: Market Maker P&L}
+The comparison of the Market Maker's final wealth under different noise regimes provided directional support for our third hypothesis. In the High Noise scenario, the Market Maker incurred a loss of approximately \$4,700, whereas in the Low Noise scenario, a profit of approximately \$46,000 was realized. However, a t-test on the daily Profit & Loss (P&L) series indicated that this difference was not statistically significant at the 5% level ($t = 1.35$, $p = 0.18$). This suggests that while the cumulative impact of adverse selection is substantial, the high variance in daily returns—driven by noise—makes the daily statistical distinction less clear.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/hypothesis_3_result.png}
+    \caption{Market Maker Wealth Evolution.}
+    \label{fig:hyp3}
+\end{figure}
+
+\subsection{Sensitivity Analysis: Agent Ratios}
+To test the robustness of our findings, we conducted a sensitivity analysis by varying the number of Noise Traders ($N \in \{10, 50, 100\}$) and Sophisticated Traders ($S \in \{5, 20, 50\}$).
+
+\subsubsection{Impact on Volatility Smile}
+As expected, increasing the number of Noise Traders consistently strengthened the volatility smile (higher OTM IV). Interestingly, an increase in Sophisticated Traders \textit{also} steepened the smile. This is likely because Sophisticated Traders sell ATM volatility (Short Straddle) when divergence is high, suppressing the ATM IV. When combined with Noise Traders pushing up OTM IV, the spread ($IV_{OTM} - IV_{ATM}$) widens further.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figures/sensitivity_smile.png}
+    \caption{Heatmap: Impact of Agent Populations on Smile Strength.}
+    \label{fig:sens_smile}
+\end{figure}
+
+\subsubsection{Impact on Market Maker Wealth}
+The Market Maker's profitability showed a clear non-linear relationship. With few Sophisticated Traders ($S=5$), increasing Noise Traders from 10 to 100 caused MM wealth to collapse from a \$2,000 profit to a \$16,000 loss, confirming the Adverse Selection hypothesis. However, when Sophisticated Traders were abundant ($S=50$), the Market Maker remained profitable even in high noise environments (+\$31,000 at $N=100$). This suggests that Sophisticated Traders provide "healthy" liquidity or mean-reverting flow that offsets the toxic flow from Noise Traders.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figures/sensitivity_wealth.png}
+    \caption{Heatmap: Impact of Agent Populations on MM Wealth.}
+    \label{fig:sens_wealth}
+\end{figure}
+
+\subsection{Sentiment Model Comparison: VADER vs FinBERT}
+We also performed a comparative analysis of scenarios where agents used the simple VADER model versus those based on FinBERT. The use of FinBERT resulted in similar market patterns but produced slightly different realized volatility metrics (19.8% versus 20.2%). This observation highlights the critical importance of selecting appropriate NLP models in algorithmic trading, as the nuance captured by the model can influence market outcomes.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/sentiment_comparison.png}
+    \caption{Price Evolution: Mixed (VADER) vs. Pure FinBERT.}
+    \label{fig:sentiment}
+\end{figure}

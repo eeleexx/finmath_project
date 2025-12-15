@@ -1,4 +1,5 @@
-import numpy as np
+from collections import deque
+
 from mesa import Agent
 
 from utils import BlackScholes
@@ -14,16 +15,33 @@ class MarketParticipant(Agent):
 class MarketMaker(Agent):
     def __init__(self, model, initial_iv=0.2):
         super().__init__(model)
-        # IV is now a dictionary mapping Strike -> IV
-        self.iv = {90: initial_iv, 100: initial_iv, 110: initial_iv}
+        # IV buckets based on Moneyness (K/S)
+        # 0.9: OTM Put / ITM Call
+        # 1.0: ATM
+        # 1.1: OTM Call / ITM Put
+        self.iv_buckets = {0.9: initial_iv, 1.0: initial_iv, 1.1: initial_iv}
 
-        # Detailed inventory for hedging
-        self.inventory_calls = {90: 0, 100: 0, 110: 0}
-        self.inventory_puts = {90: 0, 100: 0, 110: 0}
+        # Detailed inventory for hedging: Strike -> Quantity
+        self.inventory_calls = {}
+        self.inventory_puts = {}
         self.stock_inventory = 0
 
         self.cash = 0
         self.sensitivity = 0.05
+        self.spread = 0.02  # 2% Bid-Ask Spread
+
+    def get_iv(self, moneyness):
+        # Find nearest bucket
+        available = list(self.iv_buckets.keys())
+        nearest = min(available, key=lambda x: abs(x - moneyness))
+        return self.iv_buckets[nearest]
+
+    def update_iv(self, moneyness, factor):
+        available = list(self.iv_buckets.keys())
+        nearest = min(available, key=lambda x: abs(x - moneyness))
+        self.iv_buckets[nearest] *= factor
+        # Clamp IV
+        self.iv_buckets[nearest] = max(0.05, min(self.iv_buckets[nearest], 3.0))
 
     def step(self):
         # Delta Hedging Logic
@@ -36,14 +54,16 @@ class MarketMaker(Agent):
         # Calculate Delta from Calls
         for K, qty in self.inventory_calls.items():
             if qty != 0:
-                iv = self.iv[K]
+                moneyness = K / S if S > 0 else 1.0
+                iv = self.get_iv(moneyness)
                 d = BlackScholes.call_delta(S, K, T, r, iv)
                 total_delta += qty * d
 
         # Calculate Delta from Puts
         for K, qty in self.inventory_puts.items():
             if qty != 0:
-                iv = self.iv[K]
+                moneyness = K / S if S > 0 else 1.0
+                iv = self.get_iv(moneyness)
                 d = BlackScholes.put_delta(S, K, T, r, iv)
                 total_delta += qty * d
 
@@ -67,77 +87,79 @@ class MarketMaker(Agent):
 
         for K, qty in self.inventory_calls.items():
             if qty != 0:
-                price = BlackScholes.call_price(S, K, T, r, self.iv[K])
+                moneyness = K / S if S > 0 else 1.0
+                price = BlackScholes.call_price(S, K, T, r, self.get_iv(moneyness))
                 val += qty * price
 
         for K, qty in self.inventory_puts.items():
             if qty != 0:
-                price = BlackScholes.put_price(S, K, T, r, self.iv[K])
+                moneyness = K / S if S > 0 else 1.0
+                price = BlackScholes.put_price(S, K, T, r, self.get_iv(moneyness))
                 val += qty * price
 
         return val
 
     def quote_options(self, S, K, T, r):
-        # Get IV for this specific strike, default to ATM (100) if not found or nearest
-        iv_k = self.iv.get(K, self.iv[100])
+        moneyness = K / S if S > 0 else 1.0
+        iv = self.get_iv(moneyness)
 
-        c_price = BlackScholes.call_price(S, K, T, r, iv_k)
-        p_price = BlackScholes.put_price(S, K, T, r, iv_k)
-        return c_price, p_price
+        mid_c = BlackScholes.call_price(S, K, T, r, iv)
+        mid_p = BlackScholes.put_price(S, K, T, r, iv)
+
+        # Apply Spread
+        # Buy at Ask, Sell at Bid
+        c_ask = mid_c * (1 + self.spread / 2)
+        c_bid = mid_c * (1 - self.spread / 2)
+
+        p_ask = mid_p * (1 + self.spread / 2)
+        p_bid = mid_p * (1 - self.spread / 2)
+
+        return (c_bid, c_ask), (p_bid, p_ask)
 
     def process_order(self, order_type, quantity, strike):
         # order_type: 'buy_call', 'sell_call', 'buy_put', 'sell_put'
         # quantity: number of contracts
-        # strike: 90, 100, or 110
+        # strike: Dynamic strike price
 
         S = self.model.stock_price
         T = self.model.time_to_maturity
         r = self.model.risk_free_rate
 
-        if strike not in self.iv:
-            strike = 100  # Default to ATM
-
-        c_price, p_price = self.quote_options(S, strike, T, r)
+        (c_bid, c_ask), (p_bid, p_ask) = self.quote_options(S, strike, T, r)
         cost = 0
-
-        # Adjust specific Strike IV and Update Detailed Inventory
-        # Note: If MM "buys call" (from agent perspective, agent is SELLING to MM),
-        # but the method name is process_order from AGENT's perspective.
-        # Wait, let's check usage in NoiseTrader:
-        # cost = self.model.market_maker.process_order("buy_call", 1, strike=110)
-        # This implies the AGENT is buying. So MM is SELLING.
-        # So 'buy_call' means Agent buys, MM sells.
+        moneyness = strike / S if S > 0 else 1.0
 
         if order_type == "buy_call":
-            # Agent buys call, MM sells call (Short Call)
-            cost = c_price * quantity
-            self.inventory_calls[strike] -= quantity
+            # Agent buys call @ Ask, MM sells
+            cost = c_ask * quantity
+            self.inventory_calls[strike] = (
+                self.inventory_calls.get(strike, 0) - quantity
+            )
             self.cash += cost
-            self.iv[strike] *= 1 + self.sensitivity * (quantity / 1000)
+            self.update_iv(moneyness, 1 + self.sensitivity * (quantity / 1000))
 
         elif order_type == "sell_call":
-            # Agent sells call, MM buys call (Long Call)
-            cost = -c_price * quantity
-            self.inventory_calls[strike] += quantity
+            # Agent sells call @ Bid, MM buys
+            cost = -c_bid * quantity  # Negative cost for agent (income)
+            self.inventory_calls[strike] = (
+                self.inventory_calls.get(strike, 0) + quantity
+            )
             self.cash -= abs(cost)
-            self.iv[strike] *= 1 - self.sensitivity * (quantity / 1000)
+            self.update_iv(moneyness, 1 - self.sensitivity * (quantity / 1000))
 
         elif order_type == "buy_put":
-            # Agent buys put, MM sells put (Short Put)
-            cost = p_price * quantity
-            self.inventory_puts[strike] -= quantity
+            # Agent buys put @ Ask
+            cost = p_ask * quantity
+            self.inventory_puts[strike] = self.inventory_puts.get(strike, 0) - quantity
             self.cash += cost
-            self.iv[strike] *= 1 + self.sensitivity * (quantity / 1000)
+            self.update_iv(moneyness, 1 + self.sensitivity * (quantity / 1000))
 
         elif order_type == "sell_put":
-            # Agent sells put, MM buys put (Long Put)
-            cost = -p_price * quantity
-            self.inventory_puts[strike] += quantity
+            # Agent sells put @ Bid
+            cost = -p_bid * quantity
+            self.inventory_puts[strike] = self.inventory_puts.get(strike, 0) + quantity
             self.cash -= abs(cost)
-            self.iv[strike] *= 1 - self.sensitivity * (quantity / 1000)
-
-        # Clamp IV
-        self.iv[strike] = max(0.05, min(self.iv[strike], 3.0))
+            self.update_iv(moneyness, 1 - self.sensitivity * (quantity / 1000))
 
         return abs(cost)
 
@@ -145,27 +167,39 @@ class MarketMaker(Agent):
 class NoiseTrader(MarketParticipant):
     def __init__(self, model):
         super().__init__(model)
+        self.sentiment_history = deque(maxlen=20)
 
     def step(self):
         news = self.model.current_news
         if news is None:
             return
 
-        sentiment = news.get("title_sentiment", 0)
-        action_threshold = 0.1
+        # Use configured sentiment key
+        sentiment_key = getattr(self.model, "sentiment_key_title", "title_sentiment")
+        sentiment = news.get(sentiment_key, 0)
 
-        # HYPOTHESIS 2: Noise Traders buy "Lottery Tickets" (OTM Options)
-        # If Bullish -> Buy Call OTM (Strike 110)
-        # If Bearish -> Buy Put OTM (Strike 90)
+        self.sentiment_history.append(abs(sentiment))
+
+        # Dynamic Threshold: Mean of recent absolute sentiment + base buffer
+        if len(self.sentiment_history) > 0:
+            avg_vol = sum(self.sentiment_history) / len(self.sentiment_history)
+            action_threshold = max(0.05, avg_vol * 1.2)  # Dynamic
+        else:
+            action_threshold = 0.1
+
+        S = self.model.stock_price
 
         if sentiment > action_threshold:
-            # Buy Call OTM (110)
-            cost = self.model.market_maker.process_order("buy_call", 1, strike=110)
+            # Bullish: Buy Call OTM (Moneyness 1.1)
+            strike = round(S * 1.1, 1)
+            cost = self.model.market_maker.process_order("buy_call", 1, strike=strike)
             self.portfolio["calls"] += 1
             self.portfolio["cash"] -= cost
+
         elif sentiment < -action_threshold:
-            # Buy Put OTM (90)
-            cost = self.model.market_maker.process_order("buy_put", 1, strike=90)
+            # Bearish: Buy Put OTM (Moneyness 0.9)
+            strike = round(S * 0.9, 1)
+            cost = self.model.market_maker.process_order("buy_put", 1, strike=strike)
             self.portfolio["puts"] += 1
             self.portfolio["cash"] -= cost
 
@@ -179,22 +213,36 @@ class SophisticatedTrader(MarketParticipant):
         if news is None:
             return
 
-        title_sent = news.get("title_sentiment", 0)
-        content_sent = news.get("content_sentiment", 0)
+        key_title = getattr(self.model, "sentiment_key_title", "title_sentiment")
+        key_content = getattr(self.model, "sentiment_key_content", "content_sentiment")
+
+        title_sent = news.get(key_title, 0)
+        content_sent = news.get(key_content, 0)
 
         # Divergence
         divergence = abs(title_sent - content_sent)
 
-        # HYPOTHESIS 1: Trade Divergence on ATM Volatility
-        # If divergence is high, we expect IV to be overpriced relative to RV.
-        # Sell Straddle ATM (Strike 100)
+        S = self.model.stock_price
+
+        # Trade Divergence on ATM Volatility
         if divergence > 0.3:
+            strike = round(S, 1)  # ATM
+
             # Short Call ATM
-            cost_c = self.model.market_maker.process_order("sell_call", 1, strike=100)
+            cost_c = self.model.market_maker.process_order(
+                "sell_call", 1, strike=strike
+            )
             self.portfolio["calls"] -= 1
-            self.portfolio["cash"] += cost_c
+            self.portfolio["cash"] += (
+                cost_c  # Received premium (positive cash flow effectively, but cost is returned as abs in process_order, wait. process_order returns abs(cost). logic in agents needs to handle direction.)
+            )
+
+            # The previous implementation:
+            # cost_c = process_order(...) -> returns abs value
+            # self.portfolio["cash"] += cost_c
+            # Correct.
 
             # Short Put ATM
-            cost_p = self.model.market_maker.process_order("sell_put", 1, strike=100)
+            cost_p = self.model.market_maker.process_order("sell_put", 1, strike=strike)
             self.portfolio["puts"] -= 1
             self.portfolio["cash"] += cost_p

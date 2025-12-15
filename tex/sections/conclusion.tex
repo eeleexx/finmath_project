@@ -1,0 +1,11 @@
+\section{Conclusion}
+
+In this work, we developed an agent-based model of a financial market to investigate the impact of information asymmetry on options trading. Our findings offer several key insights into market dynamics.
+
+First, we confirmed the behavioral origins of the Volatility Smile. Our results show that this phenomenon can be endogenous, arising directly from the preferences of Noise Traders for Out-of-the-Money options. Sensitivity analysis revealed that this smile is further accentuated when Sophisticated Traders suppress At-the-Money volatility, widening the inter-strike spread.
+
+Second, we highlighted the high cost of liquidity in noisy markets. It was demonstrated that in conditions of informational noise, market making becomes a loss-making activity. However, our sensitivity analysis uncovered a crucial mitigating factor: the presence of Sophisticated Traders can neutralize this toxicity. When a sufficient number of informed agents are present to trade against the noise, the Market Maker can remain profitable, suggesting that market ecosystem diversity is key to stability.
+
+Third, the lack of significant correlation in our first hypothesis demonstrates the limits to arbitrage. Markets can remain irrational longer than arbitrageurs can remain solvent, as sophisticated strategies failed to fully correct the volatility spread regardless of the agent population ratios.
+
+The current model relies on simplified pricing mechanisms, specifically the Black-Scholes model, within the agents. A promising direction for future research involves the implementation of agents utilizing stochastic volatility models, such as the Heston model, for more accurate pricing. Additionally, transitioning from the current quote-driven system to a continuous double auction (Order Book) would provide a more realistic simulation of market microstructure.

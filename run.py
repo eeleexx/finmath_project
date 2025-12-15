@@ -1,7 +1,4 @@
-import os
-
 import matplotlib.pyplot as plt
-import pandas as pd
 import seaborn as sns
 
 from model import FinancialMarket
@@ -39,8 +36,8 @@ def run_simulation():
     axes[0].set_ylabel("Price ($)")
 
     # Implied Volatility
-    sns.lineplot(data=data, x=data.index, y="ImpliedVol", ax=axes[1], color="red")
-    axes[1].set_title("Implied Volatility (IV)")
+    sns.lineplot(data=data, x=data.index, y="ImpliedVol_ATM", ax=axes[1], color="red")
+    axes[1].set_title("Implied Volatility (ATM)")
     axes[1].set_ylabel("IV")
 
     # Sentiment

@@ -1,0 +1,12 @@
+\section{Hypothesis Formulation}
+
+Based on the literature review and the specific goals of this research, we have formulated three distinct hypotheses to guide our investigation.
+
+\subsection{Hypothesis 1 (Complex): Trading on Divergence}
+Our first hypothesis posits that a high divergence between headline sentiment and content sentiment leads to an increase in the spread between Implied Volatility (IV) and Realized Volatility (RV). The rationale behind this is that Sophisticated Traders, upon noticing that a headline is misleading or "clickbait," will sell volatility (e.g., via short straddles). They expect that the reaction of Noise Traders will be excessive relative to the fundamental news, meaning the actual price movement (RV) will be smaller than what is priced into the options (IV). However, if Noise Traders dominate the market flow, Implied Volatility may remain elevated despite the arbitrage pressure.
+
+\subsection{Hypothesis 2 (Intermediate): Volatility Smile}
+The second hypothesis suggests that an increase in the share of Noise Traders who react to extreme headlines by buying "Out-of-the-Money" (OTM) options leads to the formation of a steeper "Volatility Smile." Noise Traders often perceive OTM options as "lottery tickets" with high potential payoff. Consequently, on positive news, they tend to buy OTM Calls, and on negative news, OTM Puts. The Market Maker, observing this demand imbalance, raises the Implied Volatility for these specific strikes, thereby creating the characteristic smile shape in the volatility surface.
+
+\subsection{Hypothesis 3 (Simple): Market Maker P\&L}
+Finally, we hypothesize that under conditions of high Noise Trader activity, the Market Maker's profitability decreases due to the Adverse Selection effect and gamma hedging risks. As a liquidity provider who hedges positions via Delta-hedging, the Market Maker faces challenges in a "noisy" market. Frequent and sharp price movements—whether mean-reverting or trending—force the Market Maker to constantly re-hedge. This activity incurs transaction costs and exposes the agent to gamma losses, such as buying high and selling low during re-hedging of short gamma positions, or simply facing gap risk.

@@ -6,15 +6,23 @@ from mesa import Model
 from mesa.datacollection import DataCollector
 
 from agents import MarketMaker, NoiseTrader, SophisticatedTrader
-from utils import SentimentAnalyzer
 
 
 class FinancialMarket(Model):
-    def __init__(self, stock_symbol="AMD", num_noise=10, num_sophisticated=5):
+    def __init__(
+        self,
+        stock_symbol="AMD",
+        num_noise=10,
+        num_sophisticated=5,
+        sentiment_key_title="vader_title",
+        sentiment_key_content="finbert_content",
+    ):
         super().__init__()
         self.stock_symbol = stock_symbol
         self.num_noise = num_noise
         self.num_sophisticated = num_sophisticated
+        self.sentiment_key_title = sentiment_key_title
+        self.sentiment_key_content = sentiment_key_content
 
         # Market Parameters
         self.stock_price = 100.0
@@ -48,19 +56,23 @@ class FinancialMarket(Model):
         self.datacollector = DataCollector(
             model_reporters={
                 "StockPrice": "stock_price",
-                "ImpliedVol_90": lambda m: m.market_maker.iv.get(90, 0.2),
-                "ImpliedVol_100": lambda m: m.market_maker.iv.get(100, 0.2),
-                "ImpliedVol_110": lambda m: m.market_maker.iv.get(110, 0.2),
+                "ImpliedVol_OTM_Put": lambda m: m.market_maker.iv_buckets.get(0.9, 0.2),
+                "ImpliedVol_ATM": lambda m: m.market_maker.iv_buckets.get(1.0, 0.2),
+                "ImpliedVol_OTM_Call": lambda m: m.market_maker.iv_buckets.get(
+                    1.1, 0.2
+                ),
                 "MMPortfolioValue": lambda m: m.market_maker.get_portfolio_value(),
-                "TitleSentiment": lambda m: m.current_news["title_sentiment"]
+                "TitleSentiment": lambda m: m.current_news.get(m.sentiment_key_title, 0)
                 if m.current_news
                 else 0,
-                "ContentSentiment": lambda m: m.current_news["content_sentiment"]
+                "ContentSentiment": lambda m: m.current_news.get(
+                    m.sentiment_key_content, 0
+                )
                 if m.current_news
                 else 0,
                 "Divergence": lambda m: abs(
-                    m.current_news["title_sentiment"]
-                    - m.current_news["content_sentiment"]
+                    m.current_news.get(m.sentiment_key_title, 0)
+                    - m.current_news.get(m.sentiment_key_content, 0)
                 )
                 if m.current_news
                 else 0,
@@ -68,22 +80,47 @@ class FinancialMarket(Model):
         )
 
     def load_data(self, symbol):
-        # Load news
-        file_path = f"data/{symbol}_news.csv"
+        # Paths to sentiment files
+        base_path = "sentiments"
+        vader_title_path = f"{base_path}/{symbol}_vader_title.csv"
+        finbert_title_path = f"{base_path}/{symbol}_finbert_title.csv"
+        finbert_content_path = f"{base_path}/{symbol}_finbert_content.csv"
+
         try:
-            df = pd.read_csv(file_path)
+            # Load VADER Title (Base DataFrame)
+            df = pd.read_csv(vader_title_path)
+            df = df.rename(columns={"sentiment": "vader_title"})
+
+            # Load FinBERT Title
+            if pd.io.common.file_exists(finbert_title_path):
+                df_ft = pd.read_csv(finbert_title_path)
+                df["finbert_title"] = df_ft["sentiment"]
+            else:
+                df["finbert_title"] = 0.0
+
+            # Load FinBERT Content
+            if pd.io.common.file_exists(finbert_content_path):
+                df_fc = pd.read_csv(finbert_content_path)
+                df["finbert_content"] = df_fc["sentiment"]
+            else:
+                df["finbert_content"] = 0.0
+
         except FileNotFoundError:
-            print(f"File {file_path} not found. Using empty.")
+            print(
+                f"Sentiment files for {symbol} not found in {base_path}. Using empty."
+            )
             return []
 
-        # Analyze Sentiment
-        analyzer = SentimentAnalyzer()
-        # Handle possible missing columns or empty strings
-        df["title"] = df["title"].fillna("")
-        df["summary"] = df["summary"].fillna("")
+        # Ensure no NaNs in sentiments
+        df["vader_title"] = df["vader_title"].fillna(0.0)
+        df["finbert_title"] = df["finbert_title"].fillna(0.0)
+        df["finbert_content"] = df["finbert_content"].fillna(0.0)
 
-        df["title_sentiment"] = df["title"].apply(analyzer.get_score)
-        df["content_sentiment"] = df["summary"].apply(analyzer.get_score)
+        # Keep other useful columns
+        if "title" not in df.columns:
+            df["title"] = ""
+        if "summary" not in df.columns:
+            df["summary"] = ""
 
         return df.to_dict("records")
 

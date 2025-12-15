@@ -1,0 +1,23 @@
+\section{Model Description}
+
+\subsection{Architecture}
+The model is implemented in Python utilizing the \texttt{Mesa} framework for agent-based modeling. The simulation operates in discrete time steps, denoted as $t = 0, 1, \dots, T$.
+
+\subsection{Agents}
+
+\subsubsection{Market Maker}
+The Market Maker is the central agent responsible for providing liquidity in the options market. Its behavior is governed by three main functions. First, it posts two-sided quotes (Bid/Ask) for both Call and Put options, calculating prices based on the Black-Scholes model. Second, it manages volatility by maintaining a "Volatility Surface." The agent updates the Implied Volatility (IV) for specific strikes (categorized into Moneyness buckets of 0.9, 1.0, and 1.1) in response to supply and demand pressures. Third, the Market Maker manages risk by performing Delta-hedging of its aggregate position at the end of each time step, trading the underlying asset to neutralize the portfolio's Delta.
+
+\subsubsection{Noise Trader}
+The Noise Trader represents a retail investor who is primarily influenced by news headlines. This agent analyzes the sentiment of the news headline using NLP models such as VADER or FinBERT. Its trading logic is straightforward: if the sentiment score exceeds a dynamic threshold, the agent buys "Out-of-the-Money" (OTM) options. Specifically, positive sentiment triggers the purchase of OTM Calls, while negative sentiment triggers the purchase of OTM Puts.
+
+\subsubsection{Sophisticated Trader}
+The Sophisticated Trader represents a more informed investor who analyzes the divergence between the form (headline) and content (summary) of the news. This agent calculates the divergence as the absolute difference between the headline sentiment and the content sentiment. If this divergence is high (exceeding 0.3), the trader assumes that the current volatility is inflated by the crowd's reaction. Consequently, the agent sells "At-the-Money" (ATM) straddles, effectively betting on a reduction in volatility.
+
+\subsection{Environment and Dynamics}
+\subsubsection{Underlying Asset}
+The dynamics of the underlying asset price, $S_t$, are modeled using a Geometric Brownian Motion (GBM). The drift component of this process is dependent on the fundamental sentiment derived from the news content, formulated as:
+$$ dS_t = \mu(Sentiment_{Content}) S_t dt + \sigma S_t dW_t $$
+
+\subsubsection{Data}
+The simulation utilizes real financial news data, including headlines and summaries, for major tickers such as AMD and INTC. Sentiment scores are evaluated using two distinct models: VADER, which relies on lexical analysis, and FinBERT, a neural network transformer model fine-tuned for financial text.

@@ -1,0 +1,66 @@
+\documentclass[12pt, a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{listings}
+\usepackage{xcolor}
+
+% Geometry
+\geometry{
+    left=2cm,
+    right=2cm,
+    top=2cm,
+    bottom=2cm
+}
+
+% Title Info
+\title{
+    \textbf{Information Asymmetry in Option Markets: \\ The Impact of Headline-Driven vs. Content-Driven Trading} \\
+    \large Final Project (HW6) - Financial Mathematics
+}
+\author{
+    Kuzakhemtov Ilmir \\
+    Bobua  Andrey \\
+    Khamidulin Amir \\
+    \textit{HSE University}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This project investigates the impact of information asymmetry on option market dynamics using an Agent-Based Model (ABM). We simulate the interaction between Noise Traders, who react to headline sentiment, and Sophisticated Traders, who analyze the divergence between headlines and content. We analyze the resulting effects on the Volatility Smile, the Bid-Ask Spread, and Market Maker profitability using real-world news data and sentiment analysis (VADER vs. FinBERT).
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% Sections
+\input{sections/introduction}
+\newpage
+\input{sections/lit_review}
+\newpage
+\input{sections/hypotheses}
+\newpage
+\input{sections/model_description}
+\newpage
+\input{sections/results}
+\newpage
+\input{sections/conclusion}
+
+% Bibliography
+%\bibliographystyle{plain}
+%\bibliography{references}
+
+\end{document}
