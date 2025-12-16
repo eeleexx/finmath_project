@@ -78,6 +78,12 @@ class MarketMaker(Agent):
                 self.stock_inventory += hedge_qty
                 self.cash -= cost
 
+                # Market Impact: Hedging moves the price
+                # Buying (hedge_qty > 0) pushes price up
+                # Selling (hedge_qty < 0) pushes price down
+                impact = hedge_qty * 1e-6
+                self.model.stock_price *= 1 + impact
+
     def get_portfolio_value(self):
         S = self.model.stock_price
         T = self.model.time_to_maturity
@@ -175,7 +181,7 @@ class NoiseTrader(MarketParticipant):
             return
 
         # Use configured sentiment key
-        sentiment_key = getattr(self.model, "sentiment_key_title", "title_sentiment")
+        sentiment_key = self.model.sentiment_key_title
         sentiment = news.get(sentiment_key, 0)
 
         self.sentiment_history.append(abs(sentiment))
@@ -213,8 +219,8 @@ class SophisticatedTrader(MarketParticipant):
         if news is None:
             return
 
-        key_title = getattr(self.model, "sentiment_key_title", "title_sentiment")
-        key_content = getattr(self.model, "sentiment_key_content", "content_sentiment")
+        key_title = self.model.sentiment_key_title
+        key_content = self.model.sentiment_key_content
 
         title_sent = news.get(key_title, 0)
         content_sent = news.get(key_content, 0)

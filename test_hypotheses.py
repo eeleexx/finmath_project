@@ -72,8 +72,8 @@ def test_hypothesis_1_divergence_spread():
     plt.title(f"Hypothesis 1: Divergence vs IV-RV Spread (Corr={r_value:.2f})")
     plt.xlabel("Sentiment Divergence |Title(VADER) - Content(FinBERT)|")
     plt.ylabel("Volatility Spread (IV_ATM - RV)")
-    plt.savefig("hypothesis_1_result.png")
-    print("Plot saved to hypothesis_1_result.png")
+    plt.savefig("figures/hypothesis_1_result.png")
+    print("Plot saved to figures/hypothesis_1_result.png")
 
 
 def test_hypothesis_2_vol_smile():
@@ -167,8 +167,8 @@ def test_hypothesis_2_vol_smile():
     plt.xticks(moneyness)
     plt.legend()
     plt.grid(True)
-    plt.savefig("hypothesis_2_result.png")
-    print("Plot saved to hypothesis_2_result.png")
+    plt.savefig("figures/hypothesis_2_result.png")
+    print("Plot saved to figures/hypothesis_2_result.png")
 
 
 def test_hypothesis_3_mm_hedging():
@@ -243,8 +243,8 @@ def test_hypothesis_3_mm_hedging():
     plt.ylabel("Portfolio Value ($)")
     plt.legend()
     plt.grid(True)
-    plt.savefig("hypothesis_3_result.png")
-    print("Plot saved to hypothesis_3_result.png")
+    plt.savefig("figures/hypothesis_3_result.png")
+    print("Plot saved to figures/hypothesis_3_result.png")
 
 
 def test_sentiment_comparison():
@@ -304,8 +304,8 @@ def test_sentiment_comparison():
     plt.xlabel("Step")
     plt.ylabel("Stock Price")
     plt.legend()
-    plt.savefig("sentiment_comparison.png")
-    print("Plot saved to sentiment_comparison.png")
+    plt.savefig("figures/sentiment_comparison.png")
+    print("Plot saved to figures/sentiment_comparison.png")
 
 
 if __name__ == "__main__":

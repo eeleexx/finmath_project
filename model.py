@@ -135,7 +135,7 @@ class FinancialMarket(Model):
 
         # Update Stock Price (Geometric Brownian Motion)
         # Drift depends on Content Sentiment (The "Real" News)
-        content_sent = self.current_news.get("content_sentiment", 0)
+        content_sent = self.current_news.get(self.sentiment_key_content, 0)
         # Base drift (risk-free) + Impact of Content
         drift = self.risk_free_rate + 0.5 * content_sent
 

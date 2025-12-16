@@ -88,7 +88,7 @@ def run_sensitivity_analysis():
     plt.figure(figsize=(8, 6))
     sns.heatmap(pivot_smile, annot=True, cmap="YlOrRd", fmt=".4f")
     plt.title("Impact on Volatility Smile (OTM - ATM IV)")
-    plt.savefig("sensitivity_smile.png")
+    plt.savefig("figures/sensitivity_smile.png")
     plt.close()
 
     # 2. MM Wealth Heatmap
@@ -98,7 +98,7 @@ def run_sensitivity_analysis():
     plt.figure(figsize=(8, 6))
     sns.heatmap(pivot_wealth, annot=True, cmap="RdYlGn", fmt=",.0f")
     plt.title("Impact on Market Maker Wealth ($)")
-    plt.savefig("sensitivity_wealth.png")
+    plt.savefig("figures/sensitivity_wealth.png")
     plt.close()
 
     # 3. Spread Correlation Heatmap
@@ -110,11 +110,11 @@ def run_sensitivity_analysis():
     plt.figure(figsize=(8, 6))
     sns.heatmap(pivot_corr, annot=True, cmap="coolwarm", fmt=".4f", center=0)
     plt.title("Impact on Divergence-Spread Correlation")
-    plt.savefig("sensitivity_correlation.png")
+    plt.savefig("figures/sensitivity_correlation.png")
     plt.close()
 
     print(
-        "Plots saved: sensitivity_smile.png, sensitivity_wealth.png, sensitivity_correlation.png"
+        "Plots saved: figures/sensitivity_smile.png, figures/sensitivity_wealth.png, figures/sensitivity_correlation.png"
     )
 
 
